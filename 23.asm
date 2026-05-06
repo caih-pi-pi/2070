@@ -1,0 +1,205 @@
+DATA SEGMENT
+    BUF     DB 7,0,7 DUP(0)
+    NUMS    DW 4 DUP(?)
+    MAXV    DW ?
+    MINV    DW ?
+
+    MSGMAX  DB 'MAX = $'
+    MSGMIN  DB 0DH,0AH,'MIN = $'
+    MINSTR  DB '32768$'
+DATA ENDS
+
+STACK SEGMENT STACK
+    DW 64 DUP(?)
+STACK ENDS
+
+CODE SEGMENT
+    ASSUME CS:CODE,DS:DATA,SS:STACK
+
+START:
+    MOV AX,DATA
+    MOV DS,AX
+
+    CALL READ_INT
+    MOV NUMS[0],AX
+    CALL NEWLINE
+
+    CALL READ_INT
+    MOV NUMS[2],AX
+    CALL NEWLINE
+
+    CALL READ_INT
+    MOV NUMS[4],AX
+    CALL NEWLINE
+
+    CALL READ_INT
+    MOV NUMS[6],AX
+    CALL NEWLINE
+
+    MOV AX,NUMS[0]
+    MOV MAXV,AX
+    MOV MINV,AX
+
+    MOV SI,2
+    MOV CX,3
+
+CMP_LOOP:
+    MOV AX,NUMS[SI]
+
+    CMP AX,MAXV
+    JLE CHECK_MIN
+    MOV MAXV,AX
+
+CHECK_MIN:
+    CMP AX,MINV
+    JGE NEXT_NUM
+    MOV MINV,AX
+
+NEXT_NUM:
+    ADD SI,2
+    LOOP CMP_LOOP
+
+    LEA DX,MSGMAX
+    MOV AH,09H
+    INT 21H
+    MOV AX,MAXV
+    CALL PRINT_INT
+
+    LEA DX,MSGMIN
+    MOV AH,09H
+    INT 21H
+    MOV AX,MINV
+    CALL PRINT_INT
+
+    MOV AX,4C00H
+    INT 21H
+
+NEWLINE PROC NEAR
+    PUSH AX
+    PUSH DX
+
+    MOV DL,0DH
+    MOV AH,02H
+    INT 21H
+
+    MOV DL,0AH
+    MOV AH,02H
+    INT 21H
+
+    POP DX
+    POP AX
+    RET
+NEWLINE ENDP
+
+READ_INT PROC NEAR
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH SI
+
+    LEA DX,BUF
+    MOV AH,0AH
+    INT 21H
+
+    MOV CL,BUF[1]
+    XOR CH,CH
+    LEA SI,BUF+2
+
+    CMP BYTE PTR [SI],'-'
+    JNE RI_START
+    INC SI
+    DEC CX
+
+RI_START:
+    XOR AX,AX
+
+RI_LOOP:
+    MOV DL,[SI]
+    SUB DL,'0'
+
+    MOV BX,AX
+    SHL AX,1
+    SHL BX,1
+    SHL BX,1
+    SHL BX,1
+    ADD AX,BX
+
+    XOR BX,BX
+    MOV BL,DL
+    ADD AX,BX
+
+    INC SI
+    LOOP RI_LOOP
+
+    CMP BYTE PTR BUF+2,'-'
+    JNE RI_DONE
+    NEG AX
+
+RI_DONE:
+    POP SI
+    POP DX
+    POP CX
+    POP BX
+    RET
+READ_INT ENDP
+
+PRINT_INT PROC NEAR
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    CMP AX,0
+    JGE PI_POS
+
+    MOV DL,'-'
+    MOV AH,02H
+    INT 21H
+
+    CMP AX,8000H
+    JNE PI_NEG
+    LEA DX,MINSTR
+    MOV AH,09H
+    INT 21H
+    JMP PI_END
+
+PI_NEG:
+    NEG AX
+
+PI_POS:
+    CMP AX,0
+    JNE PI_CONV
+    MOV DL,'0'
+    MOV AH,02H
+    INT 21H
+    JMP PI_END
+
+PI_CONV:
+    XOR CX,CX
+    MOV BX,10
+
+PI_DIV:
+    XOR DX,DX
+    DIV BX
+    PUSH DX
+    INC CX
+    CMP AX,0
+    JNE PI_DIV
+
+PI_OUT:
+    POP DX
+    ADD DL,'0'
+    MOV AH,02H
+    INT 21H
+    LOOP PI_OUT
+
+PI_END:
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PRINT_INT ENDP
+
+CODE ENDS
+END START

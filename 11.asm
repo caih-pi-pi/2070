@@ -1,0 +1,17 @@
+CODE SEGMENT
+    ASSUME CS:CODE
+
+START:
+    mov SI,3000H
+    MOV DI,4000H
+    MOV CX,8
+A:
+    MOV AX,[SI]
+    MOV [DI],AX
+    INC SI
+    INC DI
+    DEC CX
+    JNZ A
+    INT 03H
+CODE ENDS
+END START
