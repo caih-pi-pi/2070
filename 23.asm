@@ -1,12 +1,9 @@
 DATA SEGMENT
-    BUF     DB 7,0,7 DUP(0)
-    NUMS    DW 4 DUP(?)
-    MAXV    DW ?
-    MINV    DW ?
-
-    MSGMAX  DB 'MAX = $'
-    MSGMIN  DB 0DH,0AH,'MIN = $'
-    MINSTR  DB '32768$'
+    BUF   DB 4 DUP(?)
+    MAXV  DB ?
+    MINV  DB ?
+    MSG1  DB 0DH,0AH,'MAX = $'
+    MSG2  DB 0DH,0AH,'MIN = $'
 DATA ENDS
 
 STACK SEGMENT STACK
@@ -20,186 +17,78 @@ START:
     MOV AX,DATA
     MOV DS,AX
 
-    CALL READ_INT
-    MOV NUMS[0],AX
-    CALL NEWLINE
+    MOV CX,4
+    LEA SI,BUF
 
-    CALL READ_INT
-    MOV NUMS[2],AX
-    CALL NEWLINE
+INLOOP:
+    MOV AH,01H
+    INT 21H
+    SUB AL,'0'
+    MOV [SI],AL
+    INC SI
+    LOOP INLOOP
 
-    CALL READ_INT
-    MOV NUMS[4],AX
-    CALL NEWLINE
+    LEA SI,BUF
+    MOV CX,4
+    CALL BRANCH
 
-    CALL READ_INT
-    MOV NUMS[6],AX
-    CALL NEWLINE
+    MOV MAXV,AH
+    MOV MINV,AL
 
-    MOV AX,NUMS[0]
-    MOV MAXV,AX
-    MOV MINV,AX
-
-    MOV SI,2
-    MOV CX,3
-
-CMP_LOOP:
-    MOV AX,NUMS[SI]
-
-    CMP AX,MAXV
-    JLE CHECK_MIN
-    MOV MAXV,AX
-
-CHECK_MIN:
-    CMP AX,MINV
-    JGE NEXT_NUM
-    MOV MINV,AX
-
-NEXT_NUM:
-    ADD SI,2
-    LOOP CMP_LOOP
-
-    LEA DX,MSGMAX
+    LEA DX,MSG1
     MOV AH,09H
     INT 21H
-    MOV AX,MAXV
-    CALL PRINT_INT
 
-    LEA DX,MSGMIN
+    MOV DL,MAXV
+    ADD DL,'0'
+    MOV AH,02H
+    INT 21H
+
+    LEA DX,MSG2
     MOV AH,09H
     INT 21H
-    MOV AX,MINV
-    CALL PRINT_INT
+
+    MOV DL,MINV
+    ADD DL,'0'
+    MOV AH,02H
+    INT 21H
 
     MOV AX,4C00H
     INT 21H
 
-NEWLINE PROC NEAR
-    PUSH AX
-    PUSH DX
-
-    MOV DL,0DH
-    MOV AH,02H
-    INT 21H
-
-    MOV DL,0AH
-    MOV AH,02H
-    INT 21H
-
-    POP DX
-    POP AX
-    RET
-NEWLINE ENDP
-
-READ_INT PROC NEAR
+BRANCH PROC NEAR
     PUSH BX
     PUSH CX
-    PUSH DX
     PUSH SI
 
-    LEA DX,BUF
-    MOV AH,0AH
-    INT 21H
-
-    MOV CL,BUF[1]
-    XOR CH,CH
-    LEA SI,BUF+2
-
-    CMP BYTE PTR [SI],'-'
-    JNE RI_START
+    MOV AL,[SI]
+    MOV AH,AL
     INC SI
     DEC CX
 
-RI_START:
-    XOR AX,AX
+A1:
+    JCXZ A4
+    MOV BL,[SI]
 
-RI_LOOP:
-    MOV DL,[SI]
-    SUB DL,'0'
+    CMP BL,AH
+    JBE A2
+    MOV AH,BL
 
-    MOV BX,AX
-    SHL AX,1
-    SHL BX,1
-    SHL BX,1
-    SHL BX,1
-    ADD AX,BX
+A2:
+    CMP BL,AL
+    JAE A3
+    MOV AL,BL
 
-    XOR BX,BX
-    MOV BL,DL
-    ADD AX,BX
-
+A3:
     INC SI
-    LOOP RI_LOOP
+    LOOP A1
 
-    CMP BYTE PTR BUF+2,'-'
-    JNE RI_DONE
-    NEG AX
-
-RI_DONE:
+A4:
     POP SI
-    POP DX
     POP CX
     POP BX
     RET
-READ_INT ENDP
-
-PRINT_INT PROC NEAR
-    PUSH AX
-    PUSH BX
-    PUSH CX
-    PUSH DX
-
-    CMP AX,0
-    JGE PI_POS
-
-    MOV DL,'-'
-    MOV AH,02H
-    INT 21H
-
-    CMP AX,8000H
-    JNE PI_NEG
-    LEA DX,MINSTR
-    MOV AH,09H
-    INT 21H
-    JMP PI_END
-
-PI_NEG:
-    NEG AX
-
-PI_POS:
-    CMP AX,0
-    JNE PI_CONV
-    MOV DL,'0'
-    MOV AH,02H
-    INT 21H
-    JMP PI_END
-
-PI_CONV:
-    XOR CX,CX
-    MOV BX,10
-
-PI_DIV:
-    XOR DX,DX
-    DIV BX
-    PUSH DX
-    INC CX
-    CMP AX,0
-    JNE PI_DIV
-
-PI_OUT:
-    POP DX
-    ADD DL,'0'
-    MOV AH,02H
-    INT 21H
-    LOOP PI_OUT
-
-PI_END:
-    POP DX
-    POP CX
-    POP BX
-    POP AX
-    RET
-PRINT_INT ENDP
+BRANCH ENDP
 
 CODE ENDS
 END START
